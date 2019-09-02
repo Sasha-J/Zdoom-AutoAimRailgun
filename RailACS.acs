@@ -1,0 +1,68 @@
+#library "RailACS"
+#include "ZCommon.acs"
+
+int puffTID[64];
+Script "makePuffTid" (void)
+{
+	SetActivator(0,AAPTR_TARGET);
+	puffTID[PlayerNumber()]=UniqueTID(9999,0);
+	SetResultValue(puffTID[PlayerNumber()]);
+}
+
+Script "getRelativePitch" (void)
+{
+	// Get the player's firing height Z coordinate (Z + Height/2 + AttackZOffset)
+	int playerZ = getActorZ(0) + FixedDiv(GetActorProperty(0,APROP_Height),2.0) + GetActorProperty(0,APROP_AttackZOffset);
+	// Get the Z coordinate of the puff
+	int puffZ = getActorZ(puffTID[PlayerNumber()]);
+
+	// Next find the distance
+	// Get the X and Y lengths (player coord - puff coord)
+	int x = getActorX(0) - getActorX(puffTID[PlayerNumber()]),y = getActorY(0) - getActorY(puffTID[PlayerNumber()]);
+
+	// Get the angle of the X and Y
+	int angle = vectorangle(x, y);
+
+	// Got this next if statement from the ZDoom wiki because I'm bad at trig.
+	// http://zdoom.org/wiki/Distance
+
+	// Calculate the distances
+	int distance;
+	if(((angle+0.125)%0.5) > 0.25)
+		distance = fixedDiv(y, sin(angle));
+	 else
+		distance = fixedDiv(x, cos(angle));
+
+	// Calculate the height difference between the bullet puff and the firing height z-coordinate.
+	int height = playerZ - puffZ;
+
+	// Garbage cleanup
+	thing_Remove(puffTID[PlayerNumber()]);
+
+	// Now there is essentially a right triangle
+	// This would look really horrible if you view this without a monospace font!
+	/*
+		bullet puff-> .
+					 /|
+					/ |
+	 bullet path-> /  | height
+			      /   |
+		Player-> O----|
+				  distance
+	*/
+
+	// Next, find the angle based on the distance and height
+	int absoluteAngle = vectorAngle(distance, height);
+
+	// Return the difference between the player's pitch and the absolute angle.
+	// This is because Decorate uses angle measurements relative to the player view.
+	setResultValue((getActorPitch(0) - absoluteAngle) * 360);
+}
+
+Script "getRelativeAngle" (void)
+{
+	int disX = getActorX(puffTID[playerNumber()]) - getActorX(0);
+	int disY = getActorY(puffTID[playerNumber()]) - getActorY(0);
+	int angle = vectorAngle(disX,disY);
+	setResultValue((angle - getActorAngle(0)) * 360);
+}
